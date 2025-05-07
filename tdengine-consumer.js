@@ -15,6 +15,7 @@ module.exports = function (RED) {
         const clientId = config.clientId || `node-red-client-${node.id}`;
         const autoCommit = config.autoCommit || true;
         const autoCommitIntervalMs = config.autoCommitIntervalMs || 1000;
+        const pollingInterval = config.pollingInterval || 2000; // Default polling interval
         const autoOffsetReset = config.autoOffsetReset || 'earliest';
 
         async function createConsumerInstance() {
@@ -45,10 +46,15 @@ module.exports = function (RED) {
             const pollIntervalId = setInterval(async () => {
                 if (consumer) {
                     try {
-                        const res = await consumer.poll(100); // Poll with a short timeout
+                        const res = await consumer.poll(pollingInterval); // Poll with a short timeout
                         for (const [, value] of res) {
+                            // console.log(`data: ${JSON.stringify(value, replacer)}`);
+                            if (value._meta.length > 0) {
+                                console.log(`Received data, value: ${JSON.stringify(value, replacer)}`);
+                                // console.log(`data: ${JSON.stringify(value, replacer)}`);
+                                node.send({ payload: JSON.parse(JSON.stringify(value, replacer)) });
+                            }                            
                             // Send each message as a separate Node-RED message
-                            node.send({ payload: JSON.parse(JSON.stringify(value, replacer)) });
                         }
                         if (autoCommit) {
                             await consumer.commit();
@@ -58,7 +64,7 @@ module.exports = function (RED) {
                         // Consider if you want to trigger a reconnect here or let the main connection handle it
                     }
                 }
-            }, 100); // Adjust poll interval as needed
+            }, pollingInterval); // Adjust poll interval as needed
 
             node.on('close', () => {
                 clearInterval(pollIntervalId);
