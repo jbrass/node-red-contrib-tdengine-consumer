@@ -50,9 +50,35 @@ module.exports = function (RED) {
                         for (const [, value] of res) {
                             // console.log(`data: ${JSON.stringify(value, replacer)}`);
                             if (value._meta.length > 0) {
-                                console.log(`Received data, value: ${JSON.stringify(value, replacer)}`);
+                                // console.log(`Received data, value: ${JSON.stringify(value, replacer)}`);
+                                // the value._meta is an array of objects containing the field names and types
+                                // the value._data is an array of arrays containing the actual data
+                                // Please combine the two to create a more readable output
+
+                                let meta = value._meta;
+                                let data = value._data;
+                                let result = [];
+
+                                for (let i = 0; i < data.length; i++) {
+                                    let row = {};
+                                    for (let j = 0; j < meta.length; j++) {
+                                        let fieldName = meta[j].name;
+                                        let fieldType = meta[j].type;
+                                        let fieldValue = data[i][j];
+
+                                        // Convert BigInt to string if necessary
+                                        if (fieldType === 'BIGINT') {
+                                            fieldValue = BigInt(fieldValue);
+                                        }
+
+                                        // Add the field to the row object
+                                        row[fieldName] = fieldValue;
+                                    }
+                                    result.push(row);
+                                }
+
                                 // console.log(`data: ${JSON.stringify(value, replacer)}`);
-                                node.send({ payload: JSON.parse(JSON.stringify(value, replacer)) });
+                                node.send({ payload: JSON.parse(JSON.stringify(result, replacer)) });
                             }                            
                             // Send each message as a separate Node-RED message
                         }
